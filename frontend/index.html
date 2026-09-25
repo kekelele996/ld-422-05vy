@@ -85,9 +85,10 @@
       th, td { padding: 12px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
       th { color: var(--muted); font-size: 13px; background: #ece6d7; }
       .badge { display: inline-flex; border-radius: 999px; padding: 4px 9px; font-size: 12px; background: #ebe6d7; }
-      .badge.Active, .badge.Approved, .badge.Safe { color: var(--green); background: #ddebdc; }
-      .badge.Submitted, .badge.Proposal, .badge.Irritant, .badge.Flammable { color: var(--amber); background: #f5e8d1; }
+      .badge.Active, .badge.Approved, .badge.Safe, .badge.Received { color: var(--green); background: #ddebdc; }
+      .badge.Submitted, .badge.Proposal, .badge.Irritant, .badge.Flammable, .badge.PendingApproval, .badge.RevisionRequired { color: var(--amber); background: #f5e8d1; }
       .badge.Rejected, .badge.Corrosive, .badge.Toxic, .badge.Explosive { color: var(--red); background: #f2dbd8; }
+      .badge.Cancelled { color: var(--muted); background: #e3dfd0; }
       .alert { border-left: 5px solid var(--red); background: #faeee8; padding: 12px 14px; border-radius: 6px; margin-bottom: 16px; }
       @media (max-width: 760px) {
         .shell { grid-template-columns: 1fr; }
@@ -119,7 +120,7 @@
       };
       const badge = (value) => `<span class="badge ${value}">${value}</span>`;
       const currency = (value) => new Intl.NumberFormat("zh-CN", { style: "currency", currency: "CNY", maximumFractionDigits: 0 }).format(value);
-      let state = { view: "dashboard", dashboard: null, projects: [], experiments: [], reagents: [], usages: [], members: [] };
+      let state = { view: "dashboard", dashboard: null, projects: [], experiments: [], reagents: [], usages: [], members: [], usageFilter: { reagentId: "", userId: "", status: "" }, usageUsers: [], usageError: "" };
 
       async function show(view) {
         state.view = view;
@@ -128,8 +129,13 @@
         if (view === "projects") { state.projects = await api("/projects"); state.members = await api("/members"); }
         if (view === "experiments") { state.experiments = await api("/experiments"); state.projects = await api("/projects"); }
         if (view === "reagents") state.reagents = await api("/reagents");
-        if (view === "usages") { state.usages = await api("/reagent-usages"); state.reagents = await api("/reagents"); state.experiments = await api("/experiments"); }
+        if (view === "usages") { await loadUsages(); state.reagents = await api("/reagents"); state.experiments = await api("/experiments"); }
         render();
+      }
+      async function loadUsages() {
+        const params = new URLSearchParams(state.usageFilter);
+        state.usages = await api(`/reagent-usages?${params}`);
+        state.usageUsers = [...new Set([...state.usageUsers, ...state.usages.map((x) => x.userId)])];
       }
       function render() {
         const app = document.getElementById("app");
@@ -150,15 +156,38 @@
         if (state.view === "experiments") {
           app.innerHTML = `<h2>实验记录</h2><div class="toolbar"><button class="action" onclick="createExperiment()">创建记录</button></div>
           <textarea placeholder="富文本JSON：支持表格、图片、公式等结构化片段"></textarea>
-          ${table(["流程", "标题", "项目", "审核状态", "操作"], state.experiments.map((x) => ["撰写 → 提交 → 审核", x.title, projectName(x.projectId), badge(x.reviewStatus), `<button class="action secondary" onclick="submitExperiment('${x.id}')">提交</button> <button class="action warning" onclick="reviewExperiment('${x.id}')">审核通过</button>`]))}`;
+          ${table(["流程", "标题", "项目", "审核状态", "操作"], state.experiments.map((x) => ["撰写 → 提交 → 审核", x.title, projectName(x.projectId), badge(x.reviewStatus), `<button class="action secondary" onclick="submitExperiment('${x.id}')">提交</button> <button class="action warning" onclick="reviewExperiment('${x.id}', 'Approved')">审核通过</button> <button class="action warning" onclick="reviewExperiment('${x.id}', 'Rejected')">驳回</button>`]))}`;
         }
         if (state.view === "reagents") {
           app.innerHTML = `<h2>试剂管理</h2><div class="toolbar"><button class="action" onclick="createReagent()">新增试剂</button></div>
-          ${table(["试剂", "CAS", "危险等级", "库存", "存放位置", "操作"], state.reagents.map((x) => [x.name, x.casNo, badge(x.hazardLevel), stock(x), x.location, `<button class="action secondary" onclick="stockIn('${x.id}')">入库</button>`]))}`;
+          ${table(["试剂", "CAS", "危险等级", "库存（可用/冻结/总量）", "存放位置", "操作"], state.reagents.map((x) => [x.name, x.casNo, badge(x.hazardLevel), stock(x), x.location, `<button class="action secondary" onclick="stockIn('${x.id}')">入库</button>`]))}`;
         }
         if (state.view === "usages") {
-          app.innerHTML = `<h2>领用记录</h2><div class="toolbar"><button class="action" onclick="createUsage()">创建领用单</button></div>
-          ${table(["试剂", "数量", "实验", "用途", "审批人"], state.usages.map((x) => [reagentName(x.reagentId), x.quantity, experimentName(x.experimentId), x.purpose, x.approverId || "-"]))}`;
+          const claimable = state.experiments.filter((x) => ["Submitted", "RevisionRequired"].includes(x.reviewStatus));
+          app.innerHTML = `<h2>领用记录</h2>
+          <div class="toolbar">
+            <select onchange="setUsageFilter('reagentId', this.value)"><option value="">全部试剂</option>${state.reagents.map((x) => `<option value="${x.id}" ${state.usageFilter.reagentId === x.id ? "selected" : ""}>${x.name}</option>`).join("")}</select>
+            <select onchange="setUsageFilter('userId', this.value)"><option value="">全部领用人</option>${state.usageUsers.map((x) => `<option value="${x}" ${state.usageFilter.userId === x ? "selected" : ""}>${x}</option>`).join("")}</select>
+            <select onchange="setUsageFilter('status', this.value)">
+              <option value="">全部状态</option>
+              <option value="PendingApproval" ${state.usageFilter.status === "PendingApproval" ? "selected" : ""}>待审批</option>
+              <option value="Received" ${state.usageFilter.status === "Received" ? "selected" : ""}>已领用</option>
+              <option value="Cancelled" ${state.usageFilter.status === "Cancelled" ? "selected" : ""}>已取消</option>
+            </select>
+          </div>
+          <div class="toolbar">
+            <select id="usageReagent">${state.reagents.map((x) => `<option value="${x.id}">${x.name}（可用 ${x.availableStock}${x.unit} / 冻结 ${x.frozenStock}${x.unit}）</option>`).join("")}</select>
+            <select id="usageExperiment">${claimable.map((x) => `<option value="${x.id}">${x.title}（${x.reviewStatus}）</option>`).join("") || "<option value=''>暂无可领用的实验</option>"}</select>
+            <input id="usageQuantity" type="number" min="0.1" step="0.1" value="1" style="width: 90px" />
+            <input id="usagePurpose" placeholder="用途说明" />
+            <button class="action" onclick="createUsage()">提交领用单（提交后冻结库存）</button>
+          </div>
+          ${state.usageError ? `<div class="alert">${state.usageError}</div>` : ""}
+          ${state.usages.length ? table(["试剂", "领用人", "数量", "可用", "冻结", "关联实验", "领用状态", "用途", "日期"], state.usages.map((x) => {
+            const reagent = state.reagents.find((r) => r.id === x.reagentId);
+            const experiment = state.experiments.find((e) => e.id === x.experimentId);
+            return [reagentName(x.reagentId), x.userId, `${x.quantity}${reagent?.unit ?? ""}`, reagent ? `${reagent.availableStock}${reagent.unit}` : "-", reagent ? `${reagent.frozenStock}${reagent.unit}` : "-", `${experimentName(x.experimentId)} ${experiment ? badge(experiment.reviewStatus) : ""}`, badge(x.status), x.purpose, x.usedAt];
+          })) : "<p>暂无领用筛选结果</p>"}`;
         }
       }
       function table(headers, rows) {
@@ -169,7 +198,8 @@
         return `${currency(used)} / ${currency(total)}<div class="progress"><span style="width:${percent}%"></span></div>`;
       }
       function stock(x) {
-        return `<strong style="color:${x.stock < x.minStock ? "var(--red)" : "var(--green)"}">${x.stock}${x.unit}</strong> / 阈值 ${x.minStock}${x.unit}`;
+        const available = x.availableStock ?? x.stock - x.frozenStock;
+        return `<strong style="color:${available < x.minStock ? "var(--red)" : "var(--green)"}">${available}${x.unit}</strong> / 冻结 ${x.frozenStock}${x.unit} / 总 ${x.stock}${x.unit} / 阈值 ${x.minStock}${x.unit}`;
       }
       const projectName = (id) => state.projects.find((x) => x.id === id)?.name || id;
       const reagentName = (id) => state.reagents.find((x) => x.id === id)?.name || id;
@@ -177,10 +207,25 @@
       async function createProject() { await api("/projects", { method: "POST", body: JSON.stringify({ name: "单细胞数据复核项目", projectNo: "RL-2026-BIO-099", direction: "Biology", totalBudget: 180000 }) }); state.projects = await api("/projects"); render(); }
       async function createExperiment() { await api("/experiments", { method: "POST", body: JSON.stringify({ projectId: state.projects[0].id, title: "Western Blot 条件摸索", purpose: "优化抗体稀释比例", method: "WB" }) }); state.experiments = await api("/experiments"); render(); }
       async function submitExperiment(id) { await api(`/experiments/${id}/submit`, { method: "PATCH" }); state.experiments = await api("/experiments"); render(); }
-      async function reviewExperiment(id) { await api(`/experiments/${id}/review`, { method: "PATCH", body: JSON.stringify({ status: "Approved", comment: "记录完整，允许归档" }) }); state.experiments = await api("/experiments"); render(); }
+      async function reviewExperiment(id, status) { await api(`/experiments/${id}/review`, { method: "PATCH", body: JSON.stringify({ status, comment: status === "Approved" ? "记录完整，允许归档" : "方案需要调整" }) }); state.experiments = await api("/experiments"); render(); }
       async function createReagent() { await api("/reagents", { method: "POST", body: JSON.stringify({ name: "Tris-HCl", casNo: "1185-53-1", formula: "C4H12ClNO3", stock: 3, minStock: 2, unit: "瓶" }) }); state.reagents = await api("/reagents"); render(); }
       async function stockIn(id) { await api(`/reagents/${id}/stock-in`, { method: "PATCH", body: JSON.stringify({ quantity: 2 }) }); state.reagents = await api("/reagents"); render(); }
-      async function createUsage() { await api("/reagent-usages", { method: "POST", body: JSON.stringify({ reagentId: state.reagents[1].id, experimentId: state.experiments[0].id, quantity: 1, purpose: "缓冲液配置" }) }); state.usages = await api("/reagent-usages"); state.reagents = await api("/reagents"); render(); }
+      async function setUsageFilter(key, value) { state.usageFilter[key] = value; await loadUsages(); render(); }
+      async function createUsage() {
+        state.usageError = "";
+        const reagentId = document.getElementById("usageReagent").value;
+        const experimentId = document.getElementById("usageExperiment").value;
+        const quantity = Number(document.getElementById("usageQuantity").value);
+        const purpose = document.getElementById("usagePurpose").value || "实验消耗";
+        try {
+          await api("/reagent-usages", { method: "POST", body: JSON.stringify({ reagentId, experimentId, quantity, purpose }) });
+        } catch (error) {
+          state.usageError = error.message;
+        }
+        await loadUsages();
+        state.reagents = await api("/reagents");
+        render();
+      }
       document.querySelectorAll(".nav").forEach((button) => button.onclick = () => show(button.dataset.view));
       show("dashboard").catch((error) => document.getElementById("app").textContent = error.message);
     </script>

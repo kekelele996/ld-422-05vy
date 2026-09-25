@@ -31,8 +31,15 @@ export const StorageCondition = {
   Ventilated: "Ventilated"
 } as const;
 
+export const UsageStatus = {
+  PendingApproval: "PendingApproval",
+  Received: "Received",
+  Cancelled: "Cancelled"
+} as const;
+
 export type ProjectStatusValue = (typeof ProjectStatus)[keyof typeof ProjectStatus];
 export type ReviewStatusValue = (typeof ReviewStatus)[keyof typeof ReviewStatus];
 export type HazardLevelValue = (typeof HazardLevel)[keyof typeof HazardLevel];
 export type StorageConditionValue = (typeof StorageCondition)[keyof typeof StorageCondition];
+export type UsageStatusValue = (typeof UsageStatus)[keyof typeof UsageStatus];
 export type UserRole = "Admin" | "PI" | "SubPI" | "Researcher" | "Student";

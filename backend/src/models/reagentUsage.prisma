@@ -7,4 +7,5 @@ model ReagentUsage {
   experimentId String
   purpose String
   approverId String?
+  status String
 }

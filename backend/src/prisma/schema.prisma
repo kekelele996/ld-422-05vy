@@ -47,6 +47,7 @@ model Reagent {
   storageCondition String
   supplier String
   stock Float
+  frozenStock Float
   unit String
   minStock Float
   location String
@@ -61,6 +62,7 @@ model ReagentUsage {
   experimentId String
   purpose String
   approverId String?
+  status String
 }
 
 model ProjectMember {

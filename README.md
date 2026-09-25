@@ -30,8 +30,15 @@ backend/src/
 
 ## 枚举位置
 
-- 后端枚举：`backend/src/types/enums.ts`
+- 后端枚举：`backend/src/types/enums.ts`（含领用单状态 `UsageStatus`：PendingApproval / Received / Cancelled）
 - 前端枚举：`frontend/src/types/enums.ts`
+
+## 试剂领用与库存冻结
+
+- 仅 `Submitted`（已提交）或 `RevisionRequired`（要求修改）状态的实验可创建领用单，否则报 `EXPERIMENT_STATUS_INVALID`。
+- 领用单提交后为 `PendingApproval`，同时增加试剂 `frozenStock`（冻结数量），可用库存 = `stock - frozenStock`，不足时报 `INSUFFICIENT_STOCK`。
+- 实验审核在同一流程内联动更新领用单与库存：通过（Approved）→ 领用单转 `Received` 且冻结转实扣；驳回（Rejected）或退回（RevisionRequired）→ 领用单转 `Cancelled` 并释放冻结数量。
+- 领用记录页支持按试剂 / 领用人 / 状态筛选，并展示可用库存、冻结数量与关联实验审核状态。
 
 ## 主要接口
 

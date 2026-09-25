@@ -8,6 +8,7 @@ model Reagent {
   storageCondition String
   supplier String
   stock Float
+  frozenStock Float
   unit String
   minStock Float
   location String

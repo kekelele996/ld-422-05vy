@@ -7,7 +7,7 @@ export const dashboardService = {
     return {
       activeProjects: projects.filter((project) => project.status === "Active"),
       recentExperimentCount: experiments.filter((record) => new Date(record.experimentDate).getTime() >= sevenDaysAgo).length,
-      lowStockReagents: reagents.filter((reagent) => reagent.stock < reagent.minStock),
+      lowStockReagents: reagents.filter((reagent) => reagent.stock - reagent.frozenStock < reagent.minStock),
       pendingReviews: experiments.filter((record) => record.reviewStatus === ReviewStatus.Submitted).length
     };
   }

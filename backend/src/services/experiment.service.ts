@@ -1,7 +1,8 @@
 import { experiments } from "../prisma/seeds/seed.ts";
-import { ReviewStatus } from "../types/enums.ts";
+import { ReviewStatus, type ReviewStatusValue } from "../types/enums.ts";
 import type { ExperimentRecord } from "../types/interfaces.ts";
 import { ApiError } from "../utils/response.ts";
+import { reagentUsageService } from "./reagentUsage.service.ts";
 
 export const experimentService = {
   list(projectId = "", status = "") {
@@ -37,6 +38,8 @@ export const experimentService = {
     record.reviewerId = reviewerId;
     record.reviewStatus = status as never;
     record.reviewComment = comment;
+    // 审核结果与领用单、库存在同一流程内更新：通过→领用单转已领用且冻结转实扣；驳回/退回→取消领用并释放冻结
+    reagentUsageService.syncWithReview(record.id, status as ReviewStatusValue);
     return record;
   }
 };

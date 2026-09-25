@@ -4,5 +4,11 @@
 
 <script setup lang="ts">
 const props = defineProps<{ value: string }>();
-const type = ["Active", "Approved", "Safe"].includes(props.value) ? "success" : ["Rejected", "Toxic", "Explosive"].includes(props.value) ? "danger" : "warning";
+const type = ["Active", "Approved", "Safe", "Received"].includes(props.value)
+  ? "success"
+  : ["Rejected", "Toxic", "Explosive"].includes(props.value)
+    ? "danger"
+    : ["Cancelled"].includes(props.value)
+      ? "info"
+      : "warning";
 </script>

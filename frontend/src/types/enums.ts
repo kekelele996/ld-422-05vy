@@ -2,4 +2,5 @@ export type ProjectStatus = "Proposal" | "Active" | "Suspended" | "Completed" | 
 export type ReviewStatus = "Draft" | "Submitted" | "Approved" | "Rejected" | "RevisionRequired";
 export type HazardLevel = "Safe" | "Irritant" | "Corrosive" | "Flammable" | "Toxic" | "Explosive";
 export type StorageCondition = "RoomTemp" | "Refrigerated" | "Frozen" | "Dark" | "Ventilated";
+export type UsageStatus = "PendingApproval" | "Received" | "Cancelled";
 export type UserRole = "Admin" | "PI" | "SubPI" | "Researcher" | "Student";
