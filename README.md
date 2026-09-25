@@ -43,8 +43,15 @@ backend/src/
 - `PATCH /api/experiments/:id/review`
 - `GET|POST /api/reagents`
 - `PATCH /api/reagents/:id/stock-in`
-- `GET|POST /api/reagent-usages`
+- `GET|POST /api/reagent-usages`（支持 `reagentId` / `userId` / `status` 筛选）
 - `GET /api/audit-logs`
+
+## 领用与库存联动
+
+- 领用单状态：待审批（PendingApproval）→ 已领用（Received）/ 已取消（Cancelled）。
+- 仅已提交（Submitted）或要求修改（RevisionRequired）的实验可创建领用单；提交后冻结对应数量，可用库存 = 库存 - 冻结。
+- 实验审核通过：冻结转实扣，领用单转已领用；驳回或退回：取消领用单并释放冻结，库存与领用状态同步更新。
+- 可用库存不足或实验状态不合规时，接口返回 409 错误。
 
 ## 本地验证
 

@@ -14,6 +14,12 @@ export const ReviewStatus = {
   RevisionRequired: "RevisionRequired"
 } as const;
 
+export const UsageStatus = {
+  PendingApproval: "PendingApproval",
+  Received: "Received",
+  Cancelled: "Cancelled"
+} as const;
+
 export const HazardLevel = {
   Safe: "Safe",
   Irritant: "Irritant",
@@ -33,6 +39,7 @@ export const StorageCondition = {
 
 export type ProjectStatusValue = (typeof ProjectStatus)[keyof typeof ProjectStatus];
 export type ReviewStatusValue = (typeof ReviewStatus)[keyof typeof ReviewStatus];
+export type UsageStatusValue = (typeof UsageStatus)[keyof typeof UsageStatus];
 export type HazardLevelValue = (typeof HazardLevel)[keyof typeof HazardLevel];
 export type StorageConditionValue = (typeof StorageCondition)[keyof typeof StorageCondition];
 export type UserRole = "Admin" | "PI" | "SubPI" | "Researcher" | "Student";

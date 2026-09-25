@@ -1,8 +1,15 @@
 <template>
-  <el-tag :type="type">{{ value }}</el-tag>
+  <el-tag :type="type">{{ label || value }}</el-tag>
 </template>
 
 <script setup lang="ts">
-const props = defineProps<{ value: string }>();
-const type = ["Active", "Approved", "Safe"].includes(props.value) ? "success" : ["Rejected", "Toxic", "Explosive"].includes(props.value) ? "danger" : "warning";
+import { computed } from "vue";
+
+const props = defineProps<{ value: string; label?: string }>();
+const type = computed(() => {
+  if (["Active", "Approved", "Safe", "Received"].includes(props.value)) return "success";
+  if (["Rejected", "Toxic", "Explosive"].includes(props.value)) return "danger";
+  if (["Cancelled", "Archived"].includes(props.value)) return "info";
+  return "warning";
+});
 </script>

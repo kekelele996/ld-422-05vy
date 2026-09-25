@@ -4,7 +4,7 @@ import { auditLogMiddleware } from "../middlewares/auditLog.middleware.ts";
 
 export const reagentUsageController = {
   list(query: URLSearchParams) {
-    return reagentUsageService.list(query.get("reagentId") ?? "", query.get("userId") ?? "");
+    return reagentUsageService.list(query.get("reagentId") ?? "", query.get("userId") ?? "", query.get("status") ?? "");
   },
   create(user: User, body: Record<string, unknown>) {
     const usage = reagentUsageService.create(body, user.id);

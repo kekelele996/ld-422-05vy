@@ -1,4 +1,4 @@
-import type { HazardLevel, StorageCondition } from "./enums";
+import type { HazardLevel, StorageCondition, UsageStatus } from "./enums";
 
 export type Reagent = {
   id: string;
@@ -10,6 +10,7 @@ export type Reagent = {
   storageCondition: StorageCondition;
   supplier: string;
   stock: number;
+  frozenStock: number;
   unit: "g" | "mL" | "L" | "mol" | "瓶";
   minStock: number;
   location: string;
@@ -24,4 +25,5 @@ export type ReagentUsage = {
   experimentId: string;
   purpose: string;
   approverId?: string;
+  status: UsageStatus;
 };

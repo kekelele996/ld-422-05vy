@@ -85,9 +85,10 @@
       th, td { padding: 12px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
       th { color: var(--muted); font-size: 13px; background: #ece6d7; }
       .badge { display: inline-flex; border-radius: 999px; padding: 4px 9px; font-size: 12px; background: #ebe6d7; }
-      .badge.Active, .badge.Approved, .badge.Safe { color: var(--green); background: #ddebdc; }
-      .badge.Submitted, .badge.Proposal, .badge.Irritant, .badge.Flammable { color: var(--amber); background: #f5e8d1; }
+      .badge.Active, .badge.Approved, .badge.Safe, .badge.Received { color: var(--green); background: #ddebdc; }
+      .badge.Submitted, .badge.Proposal, .badge.Irritant, .badge.Flammable, .badge.PendingApproval { color: var(--amber); background: #f5e8d1; }
       .badge.Rejected, .badge.Corrosive, .badge.Toxic, .badge.Explosive { color: var(--red); background: #f2dbd8; }
+      .badge.Cancelled, .badge.Archived { color: var(--muted); background: #e6e3d8; }
       .alert { border-left: 5px solid var(--red); background: #faeee8; padding: 12px 14px; border-radius: 6px; margin-bottom: 16px; }
       @media (max-width: 760px) {
         .shell { grid-template-columns: 1fr; }
@@ -117,9 +118,12 @@
         if (!response.ok) throw new Error(payload.message || "请求失败");
         return payload.data;
       };
-      const badge = (value) => `<span class="badge ${value}">${value}</span>`;
+      const badge = (value, label) => `<span class="badge ${value}">${label || value}</span>`;
+      const USAGE_STATUS_LABELS = { PendingApproval: "待审批", Received: "已领用", Cancelled: "已取消" };
+      const REVIEW_STATUS_LABELS = { Draft: "草稿", Submitted: "已提交", Approved: "已通过", Rejected: "已驳回", RevisionRequired: "要求修改" };
+      const CLAIMABLE_STATUSES = ["Submitted", "RevisionRequired"];
       const currency = (value) => new Intl.NumberFormat("zh-CN", { style: "currency", currency: "CNY", maximumFractionDigits: 0 }).format(value);
-      let state = { view: "dashboard", dashboard: null, projects: [], experiments: [], reagents: [], usages: [], members: [] };
+      let state = { view: "dashboard", dashboard: null, projects: [], experiments: [], reagents: [], usages: [], members: [], usageFilters: { reagentId: "", userId: "", status: "" } };
 
       async function show(view) {
         state.view = view;
@@ -128,7 +132,13 @@
         if (view === "projects") { state.projects = await api("/projects"); state.members = await api("/members"); }
         if (view === "experiments") { state.experiments = await api("/experiments"); state.projects = await api("/projects"); }
         if (view === "reagents") state.reagents = await api("/reagents");
-        if (view === "usages") { state.usages = await api("/reagent-usages"); state.reagents = await api("/reagents"); state.experiments = await api("/experiments"); }
+        if (view === "usages") {
+          const f = state.usageFilters;
+          state.usages = await api(`/reagent-usages?reagentId=${f.reagentId}&userId=${f.userId}&status=${f.status}`);
+          state.reagents = await api("/reagents");
+          state.experiments = await api("/experiments");
+          state.members = await api("/members");
+        }
         render();
       }
       function render() {
@@ -150,15 +160,37 @@
         if (state.view === "experiments") {
           app.innerHTML = `<h2>实验记录</h2><div class="toolbar"><button class="action" onclick="createExperiment()">创建记录</button></div>
           <textarea placeholder="富文本JSON：支持表格、图片、公式等结构化片段"></textarea>
-          ${table(["流程", "标题", "项目", "审核状态", "操作"], state.experiments.map((x) => ["撰写 → 提交 → 审核", x.title, projectName(x.projectId), badge(x.reviewStatus), `<button class="action secondary" onclick="submitExperiment('${x.id}')">提交</button> <button class="action warning" onclick="reviewExperiment('${x.id}')">审核通过</button>`]))}`;
+          ${table(["流程", "标题", "项目", "审核状态", "操作"], state.experiments.map((x) => ["撰写 → 提交 → 审核", x.title, projectName(x.projectId), badge(x.reviewStatus, REVIEW_STATUS_LABELS[x.reviewStatus]), `<button class="action secondary" onclick="submitExperiment('${x.id}')">提交</button> <button class="action secondary" onclick="reviewExperiment('${x.id}', 'Approved')">审核通过</button> <button class="action warning" onclick="reviewExperiment('${x.id}', 'Rejected')">驳回</button>`]))}`;
         }
         if (state.view === "reagents") {
           app.innerHTML = `<h2>试剂管理</h2><div class="toolbar"><button class="action" onclick="createReagent()">新增试剂</button></div>
           ${table(["试剂", "CAS", "危险等级", "库存", "存放位置", "操作"], state.reagents.map((x) => [x.name, x.casNo, badge(x.hazardLevel), stock(x), x.location, `<button class="action secondary" onclick="stockIn('${x.id}')">入库</button>`]))}`;
         }
         if (state.view === "usages") {
-          app.innerHTML = `<h2>领用记录</h2><div class="toolbar"><button class="action" onclick="createUsage()">创建领用单</button></div>
-          ${table(["试剂", "数量", "实验", "用途", "审批人"], state.usages.map((x) => [reagentName(x.reagentId), x.quantity, experimentName(x.experimentId), x.purpose, x.approverId || "-"]))}`;
+          const f = state.usageFilters;
+          const reagentOptions = [`<option value="">全部试剂</option>`, ...state.reagents.map((x) => `<option value="${x.id}" ${f.reagentId === x.id ? "selected" : ""}>${x.name}</option>`)].join("");
+          const users = state.members.map((m) => m.user).filter((u, i, list) => u && list.findIndex((x) => x && x.id === u.id) === i);
+          const userOptions = [`<option value="">全部领用人</option>`, ...users.map((u) => `<option value="${u.id}" ${f.userId === u.id ? "selected" : ""}>${u.name}</option>`)].join("");
+          const statusOptions = [["", "全部状态"], ...Object.entries(USAGE_STATUS_LABELS)].map(([v, l]) => `<option value="${v}" ${f.status === v ? "selected" : ""}>${l}</option>`).join("");
+          app.innerHTML = `<h2>领用记录</h2><div class="toolbar">
+            <select onchange="setUsageFilter('reagentId', this.value)">${reagentOptions}</select>
+            <select onchange="setUsageFilter('userId', this.value)">${userOptions}</select>
+            <select onchange="setUsageFilter('status', this.value)">${statusOptions}</select>
+            <button class="action" onclick="createUsage()">创建领用单</button></div>
+          ${state.usages.length ? table(["试剂（可用 / 冻结）", "数量", "领用人", "关联实验", "领用状态", "用途", "领用日期"], state.usages.map((x) => {
+            const r = state.reagents.find((item) => item.id === x.reagentId);
+            const e = state.experiments.find((item) => item.id === x.experimentId);
+            const available = r ? r.stock - (r.frozenStock || 0) : 0;
+            return [
+              r ? `${r.name}<br><small>可用 ${available}${r.unit} · 冻结 ${r.frozenStock || 0}${r.unit}</small>` : x.reagentId,
+              `${x.quantity}${r ? r.unit : ""}`,
+              userName(x.userId),
+              e ? `${e.title}<br>${badge(e.reviewStatus, REVIEW_STATUS_LABELS[e.reviewStatus])}` : x.experimentId,
+              badge(x.status, USAGE_STATUS_LABELS[x.status]),
+              x.purpose,
+              x.usedAt
+            ];
+          })) : `<div class="card">暂无领用筛选结果</div>`}`;
         }
       }
       function table(headers, rows) {
@@ -169,18 +201,42 @@
         return `${currency(used)} / ${currency(total)}<div class="progress"><span style="width:${percent}%"></span></div>`;
       }
       function stock(x) {
-        return `<strong style="color:${x.stock < x.minStock ? "var(--red)" : "var(--green)"}">${x.stock}${x.unit}</strong> / 阈值 ${x.minStock}${x.unit}`;
+        const frozen = x.frozenStock || 0;
+        return `<strong style="color:${x.stock < x.minStock ? "var(--red)" : "var(--green)"}">${x.stock}${x.unit}</strong> / 阈值 ${x.minStock}${x.unit}<br><small>可用 ${x.stock - frozen}${x.unit} · 冻结 ${frozen}${x.unit}</small>`;
       }
       const projectName = (id) => state.projects.find((x) => x.id === id)?.name || id;
-      const reagentName = (id) => state.reagents.find((x) => x.id === id)?.name || id;
-      const experimentName = (id) => state.experiments.find((x) => x.id === id)?.title || id;
+      const userName = (id) => state.members.find((m) => m.userId === id)?.user?.name || id;
       async function createProject() { await api("/projects", { method: "POST", body: JSON.stringify({ name: "单细胞数据复核项目", projectNo: "RL-2026-BIO-099", direction: "Biology", totalBudget: 180000 }) }); state.projects = await api("/projects"); render(); }
       async function createExperiment() { await api("/experiments", { method: "POST", body: JSON.stringify({ projectId: state.projects[0].id, title: "Western Blot 条件摸索", purpose: "优化抗体稀释比例", method: "WB" }) }); state.experiments = await api("/experiments"); render(); }
       async function submitExperiment(id) { await api(`/experiments/${id}/submit`, { method: "PATCH" }); state.experiments = await api("/experiments"); render(); }
-      async function reviewExperiment(id) { await api(`/experiments/${id}/review`, { method: "PATCH", body: JSON.stringify({ status: "Approved", comment: "记录完整，允许归档" }) }); state.experiments = await api("/experiments"); render(); }
+      async function reviewExperiment(id, status) {
+        const comment = status === "Approved" ? "记录完整，允许归档" : "数据不足，予以驳回";
+        await api(`/experiments/${id}/review`, { method: "PATCH", body: JSON.stringify({ status, comment }) });
+        state.experiments = await api("/experiments");
+        render();
+      }
       async function createReagent() { await api("/reagents", { method: "POST", body: JSON.stringify({ name: "Tris-HCl", casNo: "1185-53-1", formula: "C4H12ClNO3", stock: 3, minStock: 2, unit: "瓶" }) }); state.reagents = await api("/reagents"); render(); }
       async function stockIn(id) { await api(`/reagents/${id}/stock-in`, { method: "PATCH", body: JSON.stringify({ quantity: 2 }) }); state.reagents = await api("/reagents"); render(); }
-      async function createUsage() { await api("/reagent-usages", { method: "POST", body: JSON.stringify({ reagentId: state.reagents[1].id, experimentId: state.experiments[0].id, quantity: 1, purpose: "缓冲液配置" }) }); state.usages = await api("/reagent-usages"); state.reagents = await api("/reagents"); render(); }
+      function setUsageFilter(key, value) { state.usageFilters[key] = value; show("usages"); }
+      async function createUsage() {
+        const claimable = state.experiments.filter((x) => CLAIMABLE_STATUSES.includes(x.reviewStatus));
+        if (!claimable.length) { alert("暂无已提交或要求修改的实验，无法创建领用单"); return; }
+        const reagentLines = state.reagents.map((x, i) => `${i + 1}. ${x.name}（可用 ${x.stock - (x.frozenStock || 0)}${x.unit} / 冻结 ${x.frozenStock || 0}${x.unit}）`);
+        const reagent = state.reagents[Number(prompt(`选择试剂：\n${reagentLines.join("\n")}`, "1")) - 1];
+        if (!reagent) return;
+        const experimentLines = claimable.map((x, i) => `${i + 1}. ${x.title}（${REVIEW_STATUS_LABELS[x.reviewStatus]}）`);
+        const experiment = claimable[Number(prompt(`选择关联实验（仅已提交或要求修改）：\n${experimentLines.join("\n")}`, "1")) - 1];
+        if (!experiment) return;
+        const quantity = Number(prompt(`领用数量（${reagent.unit}）`, "1"));
+        if (!(quantity > 0)) { alert("领用数量必须大于 0"); return; }
+        const purpose = prompt("用途说明", "实验消耗") || "实验消耗";
+        try {
+          await api("/reagent-usages", { method: "POST", body: JSON.stringify({ reagentId: reagent.id, experimentId: experiment.id, quantity, purpose }) });
+        } catch (error) {
+          alert(error.message);
+        }
+        await show("usages");
+      }
       document.querySelectorAll(".nav").forEach((button) => button.onclick = () => show(button.dataset.view));
       show("dashboard").catch((error) => document.getElementById("app").textContent = error.message);
     </script>

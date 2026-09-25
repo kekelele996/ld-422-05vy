@@ -14,7 +14,7 @@ export const reagentService = {
   },
   create(input: Partial<Reagent>) {
     const reagent: Reagent = {
-      id: `rg-${Date.now()}`,
+      id: `rg-${Date.now()}-${reagents.length}`,
       name: input.name ?? "新试剂",
       casNo: input.casNo ?? "N/A",
       formula: input.formula ?? "N/A",
@@ -23,6 +23,7 @@ export const reagentService = {
       storageCondition: input.storageCondition ?? StorageCondition.RoomTemp,
       supplier: input.supplier ?? "待补充",
       stock: Number(input.stock ?? 0),
+      frozenStock: 0,
       unit: input.unit ?? "瓶",
       minStock: Number(input.minStock ?? 1),
       location: input.location ?? "未分配"

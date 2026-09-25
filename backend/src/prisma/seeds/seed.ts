@@ -1,4 +1,4 @@
-import { HazardLevel, ProjectStatus, ReviewStatus, StorageCondition } from "../../types/enums.ts";
+import { HazardLevel, ProjectStatus, ReviewStatus, StorageCondition, UsageStatus } from "../../types/enums.ts";
 import type { AuditLog, ExperimentRecord, ProjectMember, Reagent, ReagentUsage, ResearchProject, User } from "../../types/interfaces.ts";
 
 export const users: User[] = [
@@ -20,14 +20,14 @@ export const experiments: ExperimentRecord[] = [
 ];
 
 export const reagents: Reagent[] = [
-  { id: "rg-ethanol", name: "无水乙醇", casNo: "64-17-5", formula: "C2H6O", purity: "99.7%", hazardLevel: HazardLevel.Flammable, storageCondition: StorageCondition.Ventilated, supplier: "国药试剂", stock: 4.5, unit: "L", minStock: 5, location: "危化柜-2层" },
-  { id: "rg-pbs", name: "PBS 缓冲液", casNo: "N/A", formula: "Buffer", purity: "1x", hazardLevel: HazardLevel.Safe, storageCondition: StorageCondition.RoomTemp, supplier: "赛默飞", stock: 18, unit: "瓶", minStock: 6, location: "试剂间-A3" },
-  { id: "rg-acid", name: "盐酸", casNo: "7647-01-0", formula: "HCl", purity: "36%", hazardLevel: HazardLevel.Corrosive, storageCondition: StorageCondition.Ventilated, supplier: "麦克林", stock: 900, unit: "mL", minStock: 500, location: "酸碱柜-B1" }
+  { id: "rg-ethanol", name: "无水乙醇", casNo: "64-17-5", formula: "C2H6O", purity: "99.7%", hazardLevel: HazardLevel.Flammable, storageCondition: StorageCondition.Ventilated, supplier: "国药试剂", stock: 4.5, frozenStock: 0, unit: "L", minStock: 5, location: "危化柜-2层" },
+  { id: "rg-pbs", name: "PBS 缓冲液", casNo: "N/A", formula: "Buffer", purity: "1x", hazardLevel: HazardLevel.Safe, storageCondition: StorageCondition.RoomTemp, supplier: "赛默飞", stock: 18, frozenStock: 2, unit: "瓶", minStock: 6, location: "试剂间-A3" },
+  { id: "rg-acid", name: "盐酸", casNo: "7647-01-0", formula: "HCl", purity: "36%", hazardLevel: HazardLevel.Corrosive, storageCondition: StorageCondition.Ventilated, supplier: "麦克林", stock: 900, frozenStock: 0, unit: "mL", minStock: 500, location: "酸碱柜-B1" }
 ];
 
 export const reagentUsages: ReagentUsage[] = [
-  { id: "use-001", reagentId: "rg-ethanol", userId: "u-researcher", quantity: 0.5, usedAt: "2026-06-09", experimentId: "ex-001", purpose: "样本固定", approverId: "u-pi" },
-  { id: "use-002", reagentId: "rg-pbs", userId: "u-student", quantity: 2, usedAt: "2026-06-10", experimentId: "ex-002", purpose: "样本清洗", approverId: "u-researcher" }
+  { id: "use-001", reagentId: "rg-ethanol", userId: "u-researcher", quantity: 0.5, usedAt: "2026-06-09", experimentId: "ex-001", purpose: "样本固定", approverId: "u-pi", status: UsageStatus.Received },
+  { id: "use-002", reagentId: "rg-pbs", userId: "u-student", quantity: 2, usedAt: "2026-06-10", experimentId: "ex-002", purpose: "样本清洗", approverId: "u-researcher", status: UsageStatus.PendingApproval }
 ];
 
 export const members: ProjectMember[] = [

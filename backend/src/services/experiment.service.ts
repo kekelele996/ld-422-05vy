@@ -2,6 +2,7 @@ import { experiments } from "../prisma/seeds/seed.ts";
 import { ReviewStatus } from "../types/enums.ts";
 import type { ExperimentRecord } from "../types/interfaces.ts";
 import { ApiError } from "../utils/response.ts";
+import { reagentUsageService } from "./reagentUsage.service.ts";
 
 export const experimentService = {
   list(projectId = "", status = "") {
@@ -10,7 +11,7 @@ export const experimentService = {
   create(input: Partial<ExperimentRecord>) {
     if (!input.projectId) throw new ApiError(400, "PROJECT_REQUIRED", "必须关联研究项目");
     const record: ExperimentRecord = {
-      id: `ex-${Date.now()}`,
+      id: `ex-${Date.now()}-${experiments.length}`,
       projectId: input.projectId,
       title: input.title ?? "未命名实验记录",
       purpose: input.purpose ?? "补充实验目的",
@@ -37,6 +38,8 @@ export const experimentService = {
     record.reviewerId = reviewerId;
     record.reviewStatus = status as never;
     record.reviewComment = comment;
+    // 审核结果与领用单、库存冻结在同一流程内更新：通过转已领用，驳回/退回取消并释放冻结
+    reagentUsageService.settleByExperiment(record.id, record.reviewStatus);
     return record;
   }
 };

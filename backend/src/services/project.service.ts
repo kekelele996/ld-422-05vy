@@ -18,7 +18,7 @@ export const projectService = {
   },
   create(input: Partial<ResearchProject>) {
     const project: ResearchProject = {
-      id: `pr-${Date.now()}`,
+      id: `pr-${Date.now()}-${projects.length}`,
       name: input.name ?? "新研究项目",
       projectNo: input.projectNo ?? `RL-${Date.now()}`,
       leaderId: input.leaderId ?? "u-pi",
