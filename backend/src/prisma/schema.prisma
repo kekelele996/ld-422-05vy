@@ -1,0 +1,72 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model ResearchProject {
+  id String @id
+  name String
+  projectNo String @unique
+  leaderId String
+  direction String
+  startedAt DateTime
+  expectedEndAt DateTime
+  actualEndAt DateTime?
+  status String
+  totalBudget Float
+  usedBudget Float
+}
+
+model ExperimentRecord {
+  id String @id
+  projectId String
+  title String
+  purpose String
+  method String
+  stepsJson Json
+  conclusion String
+  experimentDate DateTime
+  experimenterId String
+  reviewerId String?
+  reviewStatus String
+  reviewComment String?
+  attachmentUrls String[]
+}
+
+model Reagent {
+  id String @id
+  name String
+  casNo String
+  formula String
+  purity String
+  hazardLevel String
+  storageCondition String
+  supplier String
+  stock Float
+  unit String
+  minStock Float
+  location String
+}
+
+model ReagentUsage {
+  id String @id
+  reagentId String
+  userId String
+  quantity Float
+  usedAt DateTime
+  experimentId String
+  purpose String
+  approverId String?
+}
+
+model ProjectMember {
+  id String @id
+  projectId String
+  userId String
+  role String
+  joinedAt DateTime
+}

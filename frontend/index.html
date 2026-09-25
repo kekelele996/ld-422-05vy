@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>科学研究实验记录与协作平台</title>
+    <style>
+      :root {
+        --ink: #20211d;
+        --muted: #6f7168;
+        --line: #dedccf;
+        --paper: #f4f1e8;
+        --panel: #fffdf4;
+        --green: #376b4c;
+        --blue: #315f86;
+        --amber: #a36518;
+        --red: #aa3d35;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: "Gill Sans", "Avenir Next", "Segoe UI", sans-serif;
+        background: var(--paper);
+        color: var(--ink);
+      }
+      .shell {
+        display: grid;
+        grid-template-columns: 280px minmax(0, 1fr);
+        min-height: 100vh;
+      }
+      aside {
+        padding: 30px 24px;
+        border-right: 1px solid var(--line);
+        background: #ebe7d9;
+        position: sticky;
+        top: 0;
+        height: 100vh;
+      }
+      h1 { margin: 0 0 30px; font-size: 27px; line-height: 1.08; letter-spacing: 0; }
+      h2 { margin: 0 0 18px; font-size: 24px; }
+      .nav {
+        width: 100%;
+        border: 0;
+        background: transparent;
+        padding: 12px 10px;
+        border-radius: 6px;
+        display: block;
+        text-align: left;
+        font-size: 15px;
+        cursor: pointer;
+      }
+      .nav.active, .nav:hover { background: #dad2be; }
+      main { padding: clamp(22px, 3vw, 44px); }
+      .toolbar { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 18px; align-items: center; }
+      input, select, textarea {
+        min-height: 38px;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        padding: 8px 10px;
+        background: #fffdf7;
+      }
+      textarea { width: min(680px, 100%); min-height: 82px; display: block; }
+      button.action {
+        min-height: 38px;
+        border: 0;
+        border-radius: 6px;
+        padding: 8px 14px;
+        color: white;
+        background: var(--green);
+        cursor: pointer;
+      }
+      button.secondary { background: var(--blue); }
+      button.warning { background: var(--amber); }
+      .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; margin-bottom: 20px; }
+      .card, table {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+      }
+      .card { padding: 16px; }
+      .stat { font-size: 30px; font-weight: 700; margin-top: 8px; }
+      .progress { height: 10px; background: #e3dfd0; border-radius: 999px; overflow: hidden; margin-top: 8px; }
+      .progress > span { display: block; height: 100%; background: var(--green); }
+      table { width: 100%; border-collapse: collapse; overflow: hidden; }
+      th, td { padding: 12px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+      th { color: var(--muted); font-size: 13px; background: #ece6d7; }
+      .badge { display: inline-flex; border-radius: 999px; padding: 4px 9px; font-size: 12px; background: #ebe6d7; }
+      .badge.Active, .badge.Approved, .badge.Safe { color: var(--green); background: #ddebdc; }
+      .badge.Submitted, .badge.Proposal, .badge.Irritant, .badge.Flammable { color: var(--amber); background: #f5e8d1; }
+      .badge.Rejected, .badge.Corrosive, .badge.Toxic, .badge.Explosive { color: var(--red); background: #f2dbd8; }
+      .alert { border-left: 5px solid var(--red); background: #faeee8; padding: 12px 14px; border-radius: 6px; margin-bottom: 16px; }
+      @media (max-width: 760px) {
+        .shell { grid-template-columns: 1fr; }
+        aside { height: auto; position: static; border-right: 0; border-bottom: 1px solid var(--line); }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="shell">
+      <aside>
+        <h1>科学研究实验<br />记录与协作平台</h1>
+        <button class="nav active" data-view="dashboard">项目总览</button>
+        <button class="nav" data-view="projects">项目管理</button>
+        <button class="nav" data-view="experiments">实验记录</button>
+        <button class="nav" data-view="reagents">试剂管理</button>
+        <button class="nav" data-view="usages">领用记录</button>
+      </aside>
+      <main id="app">加载中...</main>
+    </div>
+    <script>
+      const api = async (path, options = {}) => {
+        const response = await fetch(`/api${path}`, {
+          ...options,
+          headers: { "content-type": "application/json", "x-demo-role": "PI", ...(options.headers || {}) }
+        });
+        const payload = await response.json();
+        if (!response.ok) throw new Error(payload.message || "请求失败");
+        return payload.data;
+      };
+      const badge = (value) => `<span class="badge ${value}">${value}</span>`;
+      const currency = (value) => new Intl.NumberFormat("zh-CN", { style: "currency", currency: "CNY", maximumFractionDigits: 0 }).format(value);
+      let state = { view: "dashboard", dashboard: null, projects: [], experiments: [], reagents: [], usages: [], members: [] };
+
+      async function show(view) {
+        state.view = view;
+        document.querySelectorAll(".nav").forEach((button) => button.classList.toggle("active", button.dataset.view === view));
+        if (view === "dashboard") state.dashboard = await api("/dashboard");
+        if (view === "projects") { state.projects = await api("/projects"); state.members = await api("/members"); }
+        if (view === "experiments") { state.experiments = await api("/experiments"); state.projects = await api("/projects"); }
+        if (view === "reagents") state.reagents = await api("/reagents");
+        if (view === "usages") { state.usages = await api("/reagent-usages"); state.reagents = await api("/reagents"); state.experiments = await api("/experiments"); }
+        render();
+      }
+      function render() {
+        const app = document.getElementById("app");
+        if (state.view === "dashboard") {
+          const d = state.dashboard;
+          app.innerHTML = `<h2>项目总览</h2><div class="alert">待审核实验记录 ${d.pendingReviews} 条，低库存试剂 ${d.lowStockReagents.length} 项。</div>
+          <section class="grid">
+            <div class="card">在研项目<div class="stat">${d.activeProjects.length}</div></div>
+            <div class="card">近7天实验记录<div class="stat">${d.recentExperimentCount}</div></div>
+            <div class="card">低库存试剂<div>${d.lowStockReagents.map((x) => `${x.name}: ${x.stock}${x.unit}`).join("<br>") || "库存稳定"}</div></div>
+          </section>
+          ${table(["项目", "方向", "状态", "经费"], d.activeProjects.map((x) => [x.name, x.direction, badge(x.status), progress(x.usedBudget, x.totalBudget)]))}`;
+        }
+        if (state.view === "projects") {
+          app.innerHTML = `<h2>项目管理</h2><div class="toolbar"><button class="action" onclick="createProject()">新建项目</button></div>
+          ${table(["项目", "编号", "状态", "经费使用", "成员数"], state.projects.map((x) => [x.name, x.projectNo, badge(x.status), progress(x.usedBudget, x.totalBudget), state.members.filter((m) => m.projectId === x.id).length]))}`;
+        }
+        if (state.view === "experiments") {
+          app.innerHTML = `<h2>实验记录</h2><div class="toolbar"><button class="action" onclick="createExperiment()">创建记录</button></div>
+          <textarea placeholder="富文本JSON：支持表格、图片、公式等结构化片段"></textarea>
+          ${table(["流程", "标题", "项目", "审核状态", "操作"], state.experiments.map((x) => ["撰写 → 提交 → 审核", x.title, projectName(x.projectId), badge(x.reviewStatus), `<button class="action secondary" onclick="submitExperiment('${x.id}')">提交</button> <button class="action warning" onclick="reviewExperiment('${x.id}')">审核通过</button>`]))}`;
+        }
+        if (state.view === "reagents") {
+          app.innerHTML = `<h2>试剂管理</h2><div class="toolbar"><button class="action" onclick="createReagent()">新增试剂</button></div>
+          ${table(["试剂", "CAS", "危险等级", "库存", "存放位置", "操作"], state.reagents.map((x) => [x.name, x.casNo, badge(x.hazardLevel), stock(x), x.location, `<button class="action secondary" onclick="stockIn('${x.id}')">入库</button>`]))}`;
+        }
+        if (state.view === "usages") {
+          app.innerHTML = `<h2>领用记录</h2><div class="toolbar"><button class="action" onclick="createUsage()">创建领用单</button></div>
+          ${table(["试剂", "数量", "实验", "用途", "审批人"], state.usages.map((x) => [reagentName(x.reagentId), x.quantity, experimentName(x.experimentId), x.purpose, x.approverId || "-"]))}`;
+        }
+      }
+      function table(headers, rows) {
+        return `<table><thead><tr>${headers.map((h) => `<th>${h}</th>`).join("")}</tr></thead><tbody>${rows.map((row) => `<tr>${row.map((cell) => `<td>${cell}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
+      }
+      function progress(used, total) {
+        const percent = Math.min(100, Math.round((used / total) * 100));
+        return `${currency(used)} / ${currency(total)}<div class="progress"><span style="width:${percent}%"></span></div>`;
+      }
+      function stock(x) {
+        return `<strong style="color:${x.stock < x.minStock ? "var(--red)" : "var(--green)"}">${x.stock}${x.unit}</strong> / 阈值 ${x.minStock}${x.unit}`;
+      }
+      const projectName = (id) => state.projects.find((x) => x.id === id)?.name || id;
+      const reagentName = (id) => state.reagents.find((x) => x.id === id)?.name || id;
+      const experimentName = (id) => state.experiments.find((x) => x.id === id)?.title || id;
+      async function createProject() { await api("/projects", { method: "POST", body: JSON.stringify({ name: "单细胞数据复核项目", projectNo: "RL-2026-BIO-099", direction: "Biology", totalBudget: 180000 }) }); state.projects = await api("/projects"); render(); }
+      async function createExperiment() { await api("/experiments", { method: "POST", body: JSON.stringify({ projectId: state.projects[0].id, title: "Western Blot 条件摸索", purpose: "优化抗体稀释比例", method: "WB" }) }); state.experiments = await api("/experiments"); render(); }
+      async function submitExperiment(id) { await api(`/experiments/${id}/submit`, { method: "PATCH" }); state.experiments = await api("/experiments"); render(); }
+      async function reviewExperiment(id) { await api(`/experiments/${id}/review`, { method: "PATCH", body: JSON.stringify({ status: "Approved", comment: "记录完整，允许归档" }) }); state.experiments = await api("/experiments"); render(); }
+      async function createReagent() { await api("/reagents", { method: "POST", body: JSON.stringify({ name: "Tris-HCl", casNo: "1185-53-1", formula: "C4H12ClNO3", stock: 3, minStock: 2, unit: "瓶" }) }); state.reagents = await api("/reagents"); render(); }
+      async function stockIn(id) { await api(`/reagents/${id}/stock-in`, { method: "PATCH", body: JSON.stringify({ quantity: 2 }) }); state.reagents = await api("/reagents"); render(); }
+      async function createUsage() { await api("/reagent-usages", { method: "POST", body: JSON.stringify({ reagentId: state.reagents[1].id, experimentId: state.experiments[0].id, quantity: 1, purpose: "缓冲液配置" }) }); state.usages = await api("/reagent-usages"); state.reagents = await api("/reagents"); render(); }
+      document.querySelectorAll(".nav").forEach((button) => button.onclick = () => show(button.dataset.view));
+      show("dashboard").catch((error) => document.getElementById("app").textContent = error.message);
+    </script>
+  </body>
+</html>

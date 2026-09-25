@@ -1,0 +1,14 @@
+model Reagent {
+  id String @id
+  name String
+  casNo String
+  formula String
+  purity String
+  hazardLevel String
+  storageCondition String
+  supplier String
+  stock Float
+  unit String
+  minStock Float
+  location String
+}

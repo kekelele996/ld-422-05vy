@@ -1,0 +1,15 @@
+model ExperimentRecord {
+  id String @id
+  projectId String
+  title String
+  purpose String
+  method String
+  stepsJson Json
+  conclusion String
+  experimentDate DateTime
+  experimenterId String
+  reviewerId String?
+  reviewStatus String
+  reviewComment String?
+  attachmentUrls String[]
+}

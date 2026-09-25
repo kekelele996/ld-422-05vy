@@ -1,0 +1,7 @@
+model ProjectMember {
+  id String @id
+  projectId String
+  userId String
+  role String
+  joinedAt DateTime
+}

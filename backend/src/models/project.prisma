@@ -1,0 +1,13 @@
+model ResearchProject {
+  id String @id
+  name String
+  projectNo String @unique
+  leaderId String
+  direction String
+  startedAt DateTime
+  expectedEndAt DateTime
+  actualEndAt DateTime?
+  status String
+  totalBudget Float
+  usedBudget Float
+}

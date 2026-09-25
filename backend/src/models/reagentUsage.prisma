@@ -1,0 +1,10 @@
+model ReagentUsage {
+  id String @id
+  reagentId String
+  userId String
+  quantity Float
+  usedAt DateTime
+  experimentId String
+  purpose String
+  approverId String?
+}
